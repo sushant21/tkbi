@@ -453,9 +453,10 @@ if __name__ == "__main__":
                                                                                                arguments.dataset,
                                                                                                str(
                                                                                                    datetime.datetime.now())))
-        log_folder = "/home/prachi/scratch_shakuntala/wtsushant/temporal-kbi/"  # /scratch/cse/phd/csz148211/log_KBI-v2/"
+        # log_folder = "/home/prachi/scratch_shakuntala/wtsushant/temporal-kbi/"  # /scratch/cse/phd/csz148211/log_KBI-v2/"
         # log_folder ="/scratch/cse/btech/cs1160329/KBI/"
         # log_folder = ""
+        log_folder = "./models/"
 
         arguments.save_dir = log_folder + arguments.save_dir
 

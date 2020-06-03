@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 
 from collections import defaultdict
 
@@ -128,7 +127,9 @@ def get_dataframe(dataset_root, kb, id2ent=None, id2rel=None):
         t_str=t_str_map[t[time_index["t_str"]]]
         fact_list.append([s, r, o, t_i, t_str])
 
+    import pandas as pd
     df = pd.DataFrame(fact_list, columns=['e1', 'r', 'e2', 't','t_str'])
+
     return df
 
 

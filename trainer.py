@@ -6,7 +6,6 @@ import kb
 import utils
 import os
 import random
-from tensorboardX import SummaryWriter
 import sys
 
 import pdb
@@ -346,10 +345,6 @@ class Trainer(object):
         self.scoring_function.train()
         #'''
 
-        if not self.debug:  # create writer & logs_dir for tensorboard logs
-            writer = SummaryWriter(logs_dir)
-        else:
-            writer = None
 
         print("Starting training")
 
@@ -357,8 +352,6 @@ class Trainer(object):
             l, reg, debug = self.step()
 
             # print("REG:",reg)
-            if not self.debug:  # better way?
-                writer.add_scalar('loss/batch_loss', l, i)
 
             losses.append(l)
             suffix = ("| Current Loss %8.4f | " % l) if len(losses) != batch_count[0] else "| Average Loss %8.4f | " % \
@@ -375,8 +368,6 @@ class Trainer(object):
             if len(losses) >= batch_count[0]:
                 count += 1
 
-                if not self.debug:
-                    writer.add_scalar('loss/avg_loss', numpy.mean(losses), i)
 
                 losses = []
                 if count == batch_count[1]:
@@ -399,8 +390,6 @@ class Trainer(object):
                     if self.predict_time:
                         time_evaluate(self.scoring_function, self.valid.kb, self.test.kb, time_args=self.time_args)
 
-                    if not self.debug:
-                        log_eval_scores(writer, valid_score, test_score, i)
 
                     self.scoring_function.train()
                     self.scheduler.step(valid_score['m']['mrr'])  # Scheduler to manage learning rate added
