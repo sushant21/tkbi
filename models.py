@@ -162,10 +162,10 @@ class TimePlex_base(torch.nn.Module):
         t2_im = self.To_im(t) if t is not None else self.To_im.weight.unsqueeze(0)[:, :-2, :]
 
 
-        if flag_debug:
-            print("Time embedd data")
-            print("t_re", t_re.shape, torch.mean(t_re), torch.std(t_re))
-            print("t_im", t_im.shape, torch.mean(t_im), torch.std(t_im))
+        # if flag_debug:
+        #     print("Time embedd data")
+        #     print("t_re", t_re.shape, torch.mean(t_re), torch.std(t_re))
+        #     print("t_im", t_im.shape, torch.mean(t_im), torch.std(t_im))
 
         #########
 
