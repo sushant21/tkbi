@@ -1,0 +1,11 @@
+0 <owns>
+1 <created>
+2 <isMarriedTo>
+3 <worksAt>
+4 <hasWonPrize>
+5 <diedIn>
+6 <wasBornIn>
+7 <isAffiliatedTo>
+8 <playsFor>
+9 <graduatedFrom>
+
