@@ -195,10 +195,13 @@ def main(mode, dataset, dataset_root, save_dir, tflogs_dir, debug, model_name, m
     # print("intervalId2dateYears", len(datamap.intervalId2dateYears))
 
     if not eval_batch_size:
-        eval_batch_size = max(50, batch_size * 2 * negative_sample_count // len(datamap.entity_map))
+        eval_batch_size = max(40, batch_size * 2 * negative_sample_count // len(datamap.entity_map))
 
     # init model
     if resume_from_save:
+        if 'eval_batch_size' in model_arguments:
+            model_arguments['eval_batch_size'] = eval_batch_size
+            
         scoring_function = getattr(models, model_name)(
             **model_arguments)  # use model_arguments from saved model, allowing those provided in command to be overridden
     else:
@@ -254,8 +257,8 @@ def main(mode, dataset, dataset_root, save_dir, tflogs_dir, debug, model_name, m
                  )
 
     elif mode == 'test':
-        if not eval_batch_size:
-            eval_batch_size = max(50, batch_size * 2 * negative_sample_count // len(datamap.entity_map))
+        # if not eval_batch_size:
+        #     eval_batch_size = max(40, batch_size * 2 * negative_sample_count // len(datamap.entity_map))
 
         # Load Model
         map_location = None if has_cuda else 'cpu'
@@ -307,6 +310,7 @@ def main(mode, dataset, dataset_root, save_dir, tflogs_dir, debug, model_name, m
 
         # '''
         # ---time prediction--- #
+        utils.colored_print("yellow", "\nEvaluating on time prediction\n")
 
         # create test/valid kbs for subset of data (for which boths start end have been provided)
         ktest_sub = kb.kb(datamap, os.path.join(dataset_root, 'intervals/test.txt'),
