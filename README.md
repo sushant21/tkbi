@@ -45,7 +45,7 @@ python main.py -d WIKIDATA12k -m TimePlex -a '{"embedding_dim":200, "model_path"
 
 # Evaluating trained models(for link and time prediction)-
 
-(Note: To evaluate TimePlex_base models, replace `-m TimePlex` with `-m TimePlex_base` and `--resume_from_save` argument to base model path, for example `./models/icews14_timeplex_base`)
+(Note: To evaluate TimePlex_base models, replace `-m TimePlex` with `-m TimePlex_base` and `--resume_from_save` argument to base model path, for example `--resume_from_save "./models/icews14_timeplex_base"`)
 
 For interval datasets-
 ```
