@@ -61,8 +61,8 @@ def compute_interval_scores(valid_time_scores_dict, test_time_scores_dict, save_
     for i, j in enumerate(id_year_map):
         id_year_map_dict[i] = j
     # print(id_year_map_dict)
-    for i, j in zip(t_gold_min[:5], t_gold_max[:5]):
-        print("gold start:{}, gold end:{}".format(i, j))
+    # for i, j in zip(t_gold_min[:5], t_gold_max[:5]):
+    #     print("gold start:{}, gold end:{}".format(i, j))
 
     # ----------------------#
     print("**************")
