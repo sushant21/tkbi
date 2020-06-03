@@ -1,10 +1,15 @@
 
-
 # Requirements
 ```
-python >= 3.5.2
-pytorch >= 1.0
-sklearn >= 0.19.0
+python>=3.6
+torch==1.0.1
+```
+
+# Environment setup
+```
+conda create --name tkbc python=3.6
+source activate tkbc
+conda install --file requirements.txt -c pytorch
 ```
 
 # Training commands-
