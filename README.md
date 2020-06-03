@@ -2,7 +2,7 @@
 # Requirements
 ```
 python>=3.6
-torch==1.0.0
+pytorch==1.0.0
 ```
 
 
@@ -22,7 +22,7 @@ python main.py -d WIKIDATA12k -m TimePlex_base -a '{"embedding_dim":200, "srt_wt
 python main.py -d icews05-15 -m TimePlex_base -a '{"embedding_dim":200, "srt_wt": 5.0, "ort_wt": 5.0, "sot_wt": 5.0, "time_reg_wt":5.0, "emb_reg_wt":0.005}' -l crossentropy_loss_AllNeg -r 0.1 -b 1000 -x 2000 -n 0 -v 1 -q 0 -y 500 -g_reg 2 -g 1.0 --filter_method time-str -e 250 --flag_add_reverse 1 --save_dir icews05-15_timeplex_base
 
 ##ICEWS14
-CUDA_VISIBLE_DEVICES=5 python main.py -d icews14 -m TimePlex_base -a '{"embedding_dim":200, "srt_wt": 5.0, "ort_wt": 5.0, "sot_wt": 5.0, "time_reg_wt":1.0, "emb_reg_wt":0.005}' -l crossentropy_loss_AllNeg -r 0.1 -b 1000 -x 2000 -n 0 -v 1 -q 0 -y 500 -g_reg 2 -g 1.0 --filter_method time-str -e 250 --flag_add_reverse 1 -z 1 --save_dir icews14_timeplex_base
+python main.py -d icews14 -m TimePlex_base -a '{"embedding_dim":200, "srt_wt": 5.0, "ort_wt": 5.0, "sot_wt": 5.0, "time_reg_wt":1.0, "emb_reg_wt":0.005}' -l crossentropy_loss_AllNeg -r 0.1 -b 1000 -x 2000 -n 0 -v 1 -q 0 -y 500 -g_reg 2 -g 1.0 --filter_method time-str -e 250 --flag_add_reverse 1 --save_dir icews14_timeplex_base
 ```
 
 ## TimePlex-
@@ -45,7 +45,7 @@ python main.py -d WIKIDATA12k -m TimePlex -a '{"embedding_dim":200, "model_path"
 
 # Evaluating trained models(for link and time prediction)-
 
-(Note: Replace `-m TimePlex` with `-m TimePlex_base` to evaluate TimePlex_base models)
+(Note: To evaluate TimePlex_base models, replace `-m TimePlex` with `-m TimePlex_base` and `--resume_from_save` argument to base model path, for example `./models/icews14_timeplex_base`)
 
 For interval datasets-
 ```
@@ -59,23 +59,11 @@ python main.py -d WIKIDATA12k -m TimePlex --resume_from_save "./models/wiki_time
 For event datasets-
 ```
 ## ICEWS05-15
-python main.py -d icews05-15 -m TimePlex --resume_from_save "./models/icews05-15_timeplex/best_valid_model.pt"  --mode test --filter-method time-str -y 40
+python main.py -d icews05-15 -m TimePlex --resume_from_save "./models/icews05-15_timeplex/best_valid_model.pt"  --mode test --filter_method time-str -y 40
 
 ## ICEWS14
-python main.py -d icews14/large -m TimePlex --resume_from_save "./models/icews14_timeplex/best_valid_model.pt"  --mode test --filter-method time-str -y 40
+python main.py -d icews14 -m TimePlex --resume_from_save "./models/icews14_timeplex/best_valid_model.pt"  --mode test --filter_method time-str -y 40
 
-```
-
-
-
-
-
-<!-- ### These trained gadgets can be combined with the following command -
-```
-##YAGO11k
-
-python command for yago
-``` -->
 
 
 
