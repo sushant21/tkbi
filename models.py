@@ -1911,3 +1911,240 @@ class TA_distmult(torch.nn.Module):
         return ""
 
 
+class DE_SimplE(torch.nn.Module):
+    def __init__(self, entity_count, relation_count, timeInterval_count, embedding_dim, clamp_v=None, reg=2,
+                 batch_norm=False, unit_reg=False, normalize_time=True, init_embed=None, time_smoothing_params=None, flag_add_reverse=0,
+                 has_cuda=True, time_reg_wt = 0.0, emb_reg_wt=1.0,  srt_wt=1.0, ort_wt=1.0, sot_wt=0.0,
+                 flag_avg_scores=0):
+        super(DE_SimplE, self).__init__()
+        self.entity_count = entity_count
+        self.embedding_dim = embedding_dim
+        self.relation_count = relation_count
+        self.unit_reg = unit_reg
+        self.reg = reg
+
+        self.dropout_layer = torch.nn.Dropout(p=0.4)
+
+
+        entity_embedding_dim = int(self.embedding_dim/2)
+        # entity_embedding_dim = self.embedding_dim
+
+
+        #self.display_norms = display_norms
+        self.E_s = torch.nn.Embedding(self.entity_count, entity_embedding_dim)
+        self.E_o = torch.nn.Embedding(self.entity_count, entity_embedding_dim)
+
+        self.R = torch.nn.Embedding(self.relation_count, self.embedding_dim)
+        self.R_inv = torch.nn.Embedding(self.relation_count, self.embedding_dim)
+
+        ###### time #######
+        
+        time_embedding_dim = entity_embedding_dim
+
+        # freq embeddings for the entities
+        self.freq_s = torch.nn.Embedding(self.entity_count, time_embedding_dim).cuda()
+        self.freq_o = torch.nn.Embedding(self.entity_count, time_embedding_dim).cuda()
+
+        # phi embeddings for the entities
+        self.phi_s = torch.nn.Embedding(self.entity_count, time_embedding_dim).cuda()
+        self.phi_o = torch.nn.Embedding(self.entity_count, time_embedding_dim).cuda()
+
+        # frequency embeddings for the entities
+        self.amp_s = torch.nn.Embedding(self.entity_count, time_embedding_dim).cuda()
+        self.amp_o = torch.nn.Embedding(self.entity_count, time_embedding_dim).cuda()
+
+        torch.nn.init.xavier_uniform_(self.freq_s.weight)
+        torch.nn.init.xavier_uniform_(self.freq_o.weight)
+        torch.nn.init.xavier_uniform_(self.phi_s.weight)
+        torch.nn.init.xavier_uniform_(self.phi_o.weight)
+        torch.nn.init.xavier_uniform_(self.amp_s.weight)
+        torch.nn.init.xavier_uniform_(self.amp_o.weight)
+        ###### ######
+
+        torch.nn.init.normal_(self.E_s.weight.data, 0, 0.05)
+        torch.nn.init.normal_(self.E_o.weight.data, 0, 0.05)
+        torch.nn.init.normal_(self.R.weight.data, 0, 0.05)
+        torch.nn.init.normal_(self.R_inv.weight.data, 0, 0.05)
+        
+        # torch.nn.init.xavier_uniform_(self.E_s.weight)
+        # torch.nn.init.xavier_uniform_(self.E_o.weight)
+        # torch.nn.init.xavier_uniform_(self.R.weight)
+        # torch.nn.init.xavier_uniform_(self.R_inv.weight)
+
+        self.minimum_value = -self.embedding_dim*self.embedding_dim
+        self.clamp_v = clamp_v
+
+        if flag_add_reverse:
+            self.relation_count = int(relation_count/2)
+        else:
+            self.relation_count = relation_count
+
+        self.flag_add_reverse = flag_add_reverse
+        self.flag_avg_scores  = flag_avg_scores
+
+        self.emb_reg_wt = emb_reg_wt
+        self.timeInterval_count = timeInterval_count
+
+    def forward(self, s, r, o, t, flag_debug=0):
+        """
+        This is the scoring function \n
+        :param s: The entities corresponding to the subject position. Must be a torch long tensor of 2 dimensions batch * x
+        :param r: The relations for the fact. Must be a torch long tensor of 2 dimensions batch * x
+        :param o: The entities corresponding to the object position. Must be a torch long tensor of 2 dimensions batch * x
+        :return: The computation graph corresponding to the forward pass of the scoring function
+        """
+        if t is not None:
+            if (t.shape[-1] == len(time_index)):  # pick which dimension to index
+                t = t[:, :, time_index["t_s"]]
+            else:
+                t = t[:, time_index["t_s"], :]
+        # else:
+        #     pdb.set_trace()
+
+        t = t.type(torch.cuda.FloatTensor).unsqueeze(-1)
+
+        s_e_h = self.E_s(s) if s is not None else self.E_s.weight.unsqueeze(0)
+        s_e_t = self.E_s(o) if o is not None else self.E_s.weight.unsqueeze(0)
+        r_e = self.R(r)
+        o_e_t = self.E_o(o) if o is not None else self.E_o.weight.unsqueeze(0)
+        o_e_h = self.E_o(s) if s is not None else self.E_o.weight.unsqueeze(0)
+        r_e_inv = self.R_inv(r)
+
+        # '''
+        ##
+        amp_e_s_h   = self.amp_s(s) if s is not None else self.amp_s.weight.unsqueeze(0)
+        freq_e_s_h  = self.freq_s(s) if s is not None else self.freq_s.weight.unsqueeze(0)
+        phi_e_s_h   = self.phi_s(s) if s is not None else self.phi_s.weight.unsqueeze(0)
+        ti_s_h      = amp_e_s_h * torch.sin(freq_e_s_h * t  + phi_e_s_h) 
+
+        amp_e_s_t   = self.amp_s(o) if o is not None else self.amp_s.weight.unsqueeze(0)
+        freq_e_s_t  = self.freq_s(o) if o is not None else self.freq_s.weight.unsqueeze(0)
+        phi_e_s_t   = self.phi_s(o) if o is not None else self.phi_s.weight.unsqueeze(0)
+        if 1:#try:
+            ti_s_t      = amp_e_s_t * torch.sin(freq_e_s_t * t  + phi_e_s_t)
+        #except:
+        #    pdb.set_trace()
+
+        amp_e_o_t   = self.amp_o(o) if o is not None else self.amp_o.weight.unsqueeze(0)
+        freq_e_o_t  = self.freq_o(o) if o is not None else self.freq_o.weight.unsqueeze(0)
+        phi_e_o_t   = self.phi_o(o) if o is not None else self.phi_o.weight.unsqueeze(0)
+        ti_o_t      = amp_e_o_t * torch.sin(freq_e_o_t * t  + phi_e_o_t)                                                  
+
+        amp_e_o_h   = self.amp_o(s) if s is not None else self.amp_o.weight.unsqueeze(0)
+        freq_e_o_h  = self.freq_o(s) if s is not None else self.freq_o.weight.unsqueeze(0)
+        phi_e_o_h   = self.phi_o(s) if s is not None else self.phi_o.weight.unsqueeze(0)
+        ti_o_h      = amp_e_o_h * torch.sin(freq_e_o_h * t  + phi_e_o_h)
+        ##
+        #'''
+
+        try:
+            # pdb.set_trace()
+            if s is None:
+                s_e_h = s_e_h.expand(ti_s_h.shape[0], -1, -1)
+                o_e_h = o_e_h.expand(ti_o_h.shape[0], -1, -1)
+            if o is None:
+                # s_e_t
+                s_e_t = s_e_t.expand(ti_s_t.shape[0], -1, -1)
+                o_e_t = o_e_t.expand(ti_o_t.shape[0], -1, -1)
+                
+            s_e_h_ti = torch.cat((s_e_h, ti_s_h), 2) 
+            s_e_t_ti = torch.cat((s_e_t, ti_s_t), 2)   
+            o_e_t_ti = torch.cat((o_e_t, ti_o_t), 2)   
+            o_e_h_ti = torch.cat((o_e_h, ti_o_h), 2)   
+
+            # s_e_h_ti = s_e_h
+            # s_e_t_ti = s_e_t
+            # o_e_t_ti = o_e_t
+            # o_e_h_ti = o_e_h 
+
+
+        except:
+            pdb.set_trace()
+
+
+        result = distmult_3way_simple(s_e_h_ti, r_e, o_e_t_ti)
+        result_inv = distmult_3way_simple(o_e_h_ti, r_e_inv, s_e_t_ti)
+
+        # if s is not None and o is not None and s.shape == o.shape:  # positive samples
+        #     result = distmult_3way_simple(s_e_h_ti, r_e, o_e_t_ti)
+        #     result_inv = distmult_3way_simple(o_e_h_ti, r_e_inv, s_e_t_ti)
+
+        # else:
+        #     result = distmult_3way_fullsoftmax(s, r, o, s_e_h_ti, r_e, o_e_t_ti, self.embedding_dim)
+        #     result_inv = distmult_3way_fullsoftmax(o, r, s, s_e_t_ti, r_e_inv, o_e_h_ti, self.embedding_dim)
+
+        score =  (result + result_inv)/2
+        # pdb.set_trace()
+        # score = self.dropout_layer(score)
+        return score
+
+
+
+        
+
+    def regularizer(self, s, r, o, t):
+        """
+        This is the regularization term \n
+        :param s: The entities corresponding to the subject position. Must be a torch long tensor of 2 dimensions batch * x
+        :param r: The relations for the fact. Must be a torch long tensor of 2 dimensions batch * x
+        :param o: The entities corresponding to the object position. Must be a torch long tensor of 2 dimensions batch * x
+        :return: The computation graph corresponding to the forward pass of the regularization term
+        """
+
+        s1 = self.E_s(s)
+        r1 = self.R(r)
+        o1 = self.E_o(o)
+
+        o2 = self.E_s(o)
+        r2 = self.R_inv(r)
+        s2 = self.E_o(s)
+
+        s_amp   = self.amp_s(s) 
+        s_freq   = self.amp_s(s) 
+        s_phi   = self.phi_s(s) 
+
+        o_amp   = self.amp_o(o) 
+        o_freq   = self.amp_o(o) 
+        o_phi   = self.phi_o(o) 
+
+
+
+        if self.reg==2:
+            ret =  (s1**2).sum() + (o1**2).sum() + (r1**2).sum() + (o2**2).sum() + (r2**2).sum() + (s2**2).sum()
+
+            ret += (s_amp**2).sum() + (s_freq**2).sum() + (s_phi**2).sum() 
+            ret += (o_amp**2).sum() + (o_freq**2).sum() + (o_phi**2).sum() 
+
+            return self.emb_reg_wt* (ret/ s.shape[0])
+        elif self.reg==22:
+            ret=(
+                          (torch.norm(self.E_s.weight, p=2)**2)    + (torch.norm(self.E_o.weight, p=2)**2) 
+                        + (torch.norm(self.R.weight, p=2)**2)      + (torch.norm(self.R_inv.weight,p=2)**2)
+                        + (torch.norm(self.freq_s.weight, p=2)**2) + (torch.norm(self.freq_o.weight, p=2)**2) 
+                        + (torch.norm(self.phi_s.weight, p=2)**2)  + (torch.norm(self.phi_o.weight, p=2)**2)
+                        + (torch.norm(self.amp_s.weight, p=2)**2)  + (torch.norm(self.amp_o.weight, p=2)**2)
+                    )
+            return self.emb_reg_wt* (ret/ s.shape[0])
+            
+        elif self.reg == 1:
+            return (s.abs()+r.abs()+o.abs()).sum()
+        elif self.reg == 3:
+            factor = [torch.sqrt(s**2),torch.sqrt(o**2),torch.sqrt(r**2)]
+            reg = 0
+            for ele in factor:
+                reg += torch.sum(torch.abs(ele) ** 3)
+            return reg/s.shape[0]
+        else:
+            print("Unknown reg for distmult model")
+            assert(False)
+
+    def post_epoch(self):
+        """
+        Post epoch/batch processing stuff.
+        :return: Any message that needs to be displayed after each batch
+        """
+        if(self.unit_reg):
+            self.E_s.weight.data.div_(self.E_s.weight.data.norm(2, dim=-1, keepdim=True))
+            self.E_o.weight.data.div_(self.E_o.weight.data.norm(2, dim=-1, keepdim=True))
+            self.R.weight.data.div_(self.R.weight.data.norm(2, dim=-1, keepdim=True))
+        return ""
