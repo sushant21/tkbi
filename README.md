@@ -1,3 +1,5 @@
+# Temporal Knowledge Base Completion:New Algorithms and Evaluation Protocols
+See Table 2 for results.
 
 # Requirements
 ```
@@ -5,6 +7,7 @@ python>=3.6
 pytorch==1.0.0
 ```
 
+We are listing commands which can be used to train and evaluate TIMEPLEX model.
 
 # Training commands-
 
