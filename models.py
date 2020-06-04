@@ -1914,8 +1914,7 @@ class TA_distmult(torch.nn.Module):
 class DE_SimplE(torch.nn.Module):
     def __init__(self, entity_count, relation_count, timeInterval_count, embedding_dim, clamp_v=None, reg=2,
                  batch_norm=False, unit_reg=False, normalize_time=True, init_embed=None, time_smoothing_params=None, flag_add_reverse=0,
-                 has_cuda=True, time_reg_wt = 0.0, emb_reg_wt=1.0,  srt_wt=1.0, ort_wt=1.0, sot_wt=0.0,
-                 flag_avg_scores=0):
+                 has_cuda=True, time_reg_wt = 0.0, emb_reg_wt=0.0,  flag_avg_scores=0, dropout=0.4):
         super(DE_SimplE, self).__init__()
         self.entity_count = entity_count
         self.embedding_dim = embedding_dim
@@ -1984,6 +1983,7 @@ class DE_SimplE(torch.nn.Module):
 
         self.emb_reg_wt = emb_reg_wt
         self.timeInterval_count = timeInterval_count
+        self.dropout = dropout
 
     def forward(self, s, r, o, t, flag_debug=0):
         """
@@ -1998,10 +1998,15 @@ class DE_SimplE(torch.nn.Module):
                 t = t[:, :, time_index["t_s"]]
             else:
                 t = t[:, time_index["t_s"], :]
-        # else:
-        #     pdb.set_trace()
+            t_values = t.type(torch.cuda.FloatTensor).unsqueeze(-1)
+        else:
+            t_values = torch.arange(0,self.timeInterval_count-1).type(torch.cuda.FloatTensor)
+            t_values = t_values.unsqueeze(1).unsqueeze(0)
+            batch_size = len(s)
+            t_values = t_values.repeat(batch_size,1,1)
+            # pdb.set_trace()
 
-        t = t.type(torch.cuda.FloatTensor).unsqueeze(-1)
+
 
         s_e_h = self.E_s(s) if s is not None else self.E_s.weight.unsqueeze(0)
         s_e_t = self.E_s(o) if o is not None else self.E_s.weight.unsqueeze(0)
@@ -2015,25 +2020,25 @@ class DE_SimplE(torch.nn.Module):
         amp_e_s_h   = self.amp_s(s) if s is not None else self.amp_s.weight.unsqueeze(0)
         freq_e_s_h  = self.freq_s(s) if s is not None else self.freq_s.weight.unsqueeze(0)
         phi_e_s_h   = self.phi_s(s) if s is not None else self.phi_s.weight.unsqueeze(0)
-        ti_s_h      = amp_e_s_h * torch.sin(freq_e_s_h * t  + phi_e_s_h) 
+        ti_s_h      = amp_e_s_h * torch.sin(freq_e_s_h * t_values  + phi_e_s_h) 
 
         amp_e_s_t   = self.amp_s(o) if o is not None else self.amp_s.weight.unsqueeze(0)
         freq_e_s_t  = self.freq_s(o) if o is not None else self.freq_s.weight.unsqueeze(0)
         phi_e_s_t   = self.phi_s(o) if o is not None else self.phi_s.weight.unsqueeze(0)
         if 1:#try:
-            ti_s_t      = amp_e_s_t * torch.sin(freq_e_s_t * t  + phi_e_s_t)
+            ti_s_t      = amp_e_s_t * torch.sin(freq_e_s_t * t_values  + phi_e_s_t)
         #except:
         #    pdb.set_trace()
 
         amp_e_o_t   = self.amp_o(o) if o is not None else self.amp_o.weight.unsqueeze(0)
         freq_e_o_t  = self.freq_o(o) if o is not None else self.freq_o.weight.unsqueeze(0)
         phi_e_o_t   = self.phi_o(o) if o is not None else self.phi_o.weight.unsqueeze(0)
-        ti_o_t      = amp_e_o_t * torch.sin(freq_e_o_t * t  + phi_e_o_t)                                                  
+        ti_o_t      = amp_e_o_t * torch.sin(freq_e_o_t * t_values  + phi_e_o_t)                                                  
 
         amp_e_o_h   = self.amp_o(s) if s is not None else self.amp_o.weight.unsqueeze(0)
         freq_e_o_h  = self.freq_o(s) if s is not None else self.freq_o.weight.unsqueeze(0)
         phi_e_o_h   = self.phi_o(s) if s is not None else self.phi_o.weight.unsqueeze(0)
-        ti_o_h      = amp_e_o_h * torch.sin(freq_e_o_h * t  + phi_e_o_h)
+        ti_o_h      = amp_e_o_h * torch.sin(freq_e_o_h * t_values  + phi_e_o_h)
         ##
         #'''
 
@@ -2046,6 +2051,12 @@ class DE_SimplE(torch.nn.Module):
                 # s_e_t
                 s_e_t = s_e_t.expand(ti_s_t.shape[0], -1, -1)
                 o_e_t = o_e_t.expand(ti_o_t.shape[0], -1, -1)
+            elif t is None:
+                s_e_h = s_e_h.repeat(1,self.timeInterval_count-1,1)
+                o_e_h = o_e_h.repeat(1,self.timeInterval_count-1,1)
+                s_e_t = s_e_t.repeat(1,self.timeInterval_count-1,1)
+                o_e_t = o_e_t.repeat(1,self.timeInterval_count-1,1)
+
                 
             s_e_h_ti = torch.cat((s_e_h, ti_s_h), 2) 
             s_e_t_ti = torch.cat((s_e_t, ti_s_t), 2)   
@@ -2075,6 +2086,7 @@ class DE_SimplE(torch.nn.Module):
 
         score =  (result + result_inv)/2
         # pdb.set_trace()
+        score = torch.nn.functional.dropout(score, p=self.dropout, training=((s is not None) and (o is not None) and (t is not None)) )
         # score = self.dropout_layer(score)
         return score
 
