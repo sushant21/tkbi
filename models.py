@@ -919,29 +919,6 @@ class TimePlex(torch.nn.Module):
             print("Not Initializing Recurrent")
                     
         # pdb.set_trace()
-        '''
-        # pairwise_weights_path = "/home/prachi/scratch_shakuntala/wtsushant/temporal-kbi/logs/TestU2PairwiseCX__crossentropy_loss_run_on_YAGO11k_starting_from_2020-04-03 12:18:50.869402/best_valid_model.pt"
-        # U2_weights_path = "/home/prachi/scratch_shakuntala/wtsushant/temporal-kbi/logs/TestU2PairwiseCX__crossentropy_loss_run_on_YAGO11k_starting_from_2020-04-03 03:12:11.489936/best_valid_model.pt"
-
-        pairwise_weights_path = "/home/prachi/scratch_shakuntala/wtsushant/temporal-kbi/logs/TestU2PairwiseCX__crossentropy_loss_run_on_WIKIDATA12k_starting_from_2020-04-02 03:24:11.115450/best_valid_model.pt"
-        U2_weights_path = "/home/prachi/scratch_shakuntala/wtsushant/temporal-kbi/logs/TestU2PairwiseCX__crossentropy_loss_run_on_WIKIDATA12k_starting_from_2020-04-02 03:02:49.241625/best_valid_model.pt"
-
-        try:
-            print("Loading pairwise gadget weights from: ",pairwise_weights_path)
-            pairwise_state = torch.load(pairwise_weights_path)
-            for attribute in pairwise_state['model_weights']:
-                if attribute.startswith('pairwise_model_dict.{}.pairwise_scoring_gadget'.format(mode)):
-                    self.state_dict()[attribute].copy_(pairwise_state['model_weights'][attribute])
-
-            print("Loading U2 gadget weights from:", U2_weights_path)
-            U2_state = torch.load(U2_weights_path)        
-            for attribute in U2_state['model_weights']:
-                if attribute.startswith('pairwise_model_dict.{}.U2_scoring_gadget'.format(mode)):
-                    self.state_dict()[attribute].copy_(U2_state['model_weights'][attribute])
-
-        except Exception as e:
-            pdb.set_trace()
-        # '''
 
 
     def forward(self, s, r, o, t, flag_debug=False):
@@ -1402,25 +1379,6 @@ class complex(torch.nn.Module):
         return result
         # '''
 
-        '''
-		##Old won't work
-		if o is None or o.shape[1] > 1:
-			tmp1 = (s_im*r_re+s_re*r_im); tmp1 = tmp1.view(-1,self.embedding_dim)
-			tmp2 = (s_re*r_re-s_im*r_im); tmp2 = tmp2.view(-1,self.embedding_dim)
-			o_re = o_re.view(-1,self.embedding_dim).transpose(0,1)
-			o_im = o_im.view(-1,self.embedding_dim).transpose(0,1)
-			result = tmp1 @ o_im + tmp2 @o_re 
-		else:
-			tmp1 = o_im*r_re-o_re*r_im; tmp1 = tmp1.view(-1,self.embedding_dim)
-			tmp2 = o_im*r_im+o_re*r_re; tmp2 = tmp2.view(-1,self.embedding_dim)
-			s_im = s_im.view(-1,self.embedding_dim).transpose(0,1)
-			s_re = s_re.view(-1,self.embedding_dim).transpose(0,1)
-			result = tmp1 @ s_im + tmp2 @ s_re
-
-		if 0:#flag_debug:
-			print("@Prachi Debug", "result, mean, std",torch.mean(result),torch.std(result))
-		return result
-		'''
 
     def regularizer(self, s, r, o, reg_val=0):
         s_im = self.E_im(s)
@@ -2075,14 +2033,6 @@ class DE_SimplE(torch.nn.Module):
 
         result = distmult_3way_simple(s_e_h_ti, r_e, o_e_t_ti)
         result_inv = distmult_3way_simple(o_e_h_ti, r_e_inv, s_e_t_ti)
-
-        # if s is not None and o is not None and s.shape == o.shape:  # positive samples
-        #     result = distmult_3way_simple(s_e_h_ti, r_e, o_e_t_ti)
-        #     result_inv = distmult_3way_simple(o_e_h_ti, r_e_inv, s_e_t_ti)
-
-        # else:
-        #     result = distmult_3way_fullsoftmax(s, r, o, s_e_h_ti, r_e, o_e_t_ti, self.embedding_dim)
-        #     result_inv = distmult_3way_fullsoftmax(o, r, s, s_e_t_ti, r_e_inv, o_e_h_ti, self.embedding_dim)
 
         score =  (result + result_inv)/2
         # pdb.set_trace()
